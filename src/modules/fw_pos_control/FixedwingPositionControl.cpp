@@ -510,16 +510,26 @@ float FixedwingPositionControl::getCorrectedNpfgRollSetpoint()
 {
 	// Scale the npfg output to zero if npfg is not certain for correct output
 	float new_roll_setpoint(_npfg.getRollSetpoint());
-	const float can_run_factor(_npfg.canRun(_local_pos, _wind_valid));
+	const float can_run_factor(constrain(_npfg.canRun(_local_pos, _wind_valid), 0.f, 1.f));
 
-	if ((1.f - can_run_factor) < FLT_EPSILON) {
+	// Warn the user when the scale is less than 90% for at least 2 seconds.
+	if ((1.f - can_run_factor) < 0.1f) {
 		_need_report_npfg_uncertain_condition = true;
-	}
+		_time_since_first_reduced_roll = 0U;
 
-	if (((1.f - can_run_factor) > FLT_EPSILON) && _need_report_npfg_uncertain_condition) {
-		_need_report_npfg_uncertain_condition = false;
-		events::send(events::ID("npfg_roll_command_uncertain"), events::Log::Warning,
-			     "Roll command reduced due to uncertain velocity/wind estimates!");
+	} else if (_need_report_npfg_uncertain_condition) {
+		if (_time_since_first_reduced_roll == 0U) {
+			_time_since_first_reduced_roll = hrt_absolute_time();
+		}
+
+		if (hrt_elapsed_time(&_time_since_first_reduced_roll) > 2_s) {
+			_need_report_npfg_uncertain_condition = false;
+			events::send(events::ID("npfg_roll_command_uncertain"), events::Log::Warning,
+				     "Roll command reduced due to uncertain velocity/wind estimates!");
+		}
+
+	} else {
+		// Nothing to do, already reported.
 	}
 
 	return can_run_factor * (new_roll_setpoint);

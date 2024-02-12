@@ -414,6 +414,7 @@ private:
 	// nonlinear path following guidance - lateral-directional position control
 	NPFG _npfg;
 	bool _need_report_npfg_uncertain_condition{false}; ///< boolean if reporting of uncertain npfg output condition is needed
+	hrt_abstime _time_since_first_reduced_roll{0U}; ///< absolute time since start when entering reduced roll andle for the first time
 
 	PerformanceModel _performance_model;
 
